@@ -47,7 +47,7 @@ def edit_accuracy(y_true, y_pred):
 
     dist = tf.edit_distance(y_true, y_pred)
 
-    acc = tf.map_fn(lambda d: tf.cond(tf.math.is_finite(d), lambda: 1-d, lambda: 0.),
+    acc = tf.map_fn(lambda d: tf.cond(tf.math.is_finite(d), lambda: 1 - d, lambda: 0.),
                     dist)
 
     return acc
@@ -117,8 +117,8 @@ class T5Training(TFT5ForConditionalGeneration):
         self.loss_tracker.update_state(loss)
         self.compiled_metrics.update_state(y, tf.math.argmax(logits, axis=-1, output_type=tf.int32))
         return {m.name: m.result() for m in self.metrics}
-    
-    
+
+
 def tsv_dataset(fn, tf_tokenizer, input_size=1024, output_size=1280, min_batch_size=2,
                 shuffle_window=None, line_counter=None, skip=None, repeat=False, group_by=True):
     """Creates TF dataset from TSV file
@@ -209,18 +209,18 @@ def tsv_dataset(fn, tf_tokenizer, input_size=1024, output_size=1280, min_batch_s
         use_key_func = fixed_batch_func
 
     dataset = (dataset.group_by_window(
-                    key_func=use_key_func,
-                    reduce_func=reduce_func,
-                    window_size_func=window_size_func
-               )
-               .map(to_dict)
-               .prefetch(tf.data.AUTOTUNE)
-              )
+        key_func=use_key_func,
+        reduce_func=reduce_func,
+        window_size_func=window_size_func
+    )
+        .map(to_dict)
+        .prefetch(tf.data.AUTOTUNE)
+    )
     return dataset
 
 
 def SqrtScheduler(learning_rate, verbose=0):
-    return LearningRateScheduler(lambda n: learning_rate*1/((n+1)**0.5), verbose=verbose)
+    return LearningRateScheduler(lambda n: learning_rate * 1 / ((n + 1)**0.5), verbose=verbose)
 
 
 class CheckpointSaver(Callback):
@@ -255,11 +255,11 @@ class CheckpointSaver(Callback):
         self.model.save_pretrained(out_fn)
         self.config["t5_model"]["load_checkpoint"] = self.config["t5_model"]["save_checkpoint"]
         if self.epoch is not None:
-            self.config["training"]["initial_epoch"] = self.epoch+1
+            self.config["training"]["initial_epoch"] = self.epoch + 1
             if "steps_per_epoch" in self.config["training"]:
                 self.config["training"]["skip_samples"] = self.line_counter.value().numpy().item()
 
-        out_yaml_fn = self.config["t5_model"]["save_checkpoint"]+".yaml"
+        out_yaml_fn = self.config["t5_model"]["save_checkpoint"] + ".yaml"
         with open(out_yaml_fn, "w", encoding="utf-8") as fw:
             yaml.dump(self.config, fw, default_flow_style=False, sort_keys=True)
 
@@ -281,9 +281,10 @@ class T5(object):
             self.config = config
         self.model = None
         self.predict_tokenizers = None
+
     def get_transformers_lib_version(self):
         print(transformers.__version__)
-      
+
     def load_tokenizer(self, type="predict"):
         assert type == "predict"
 
@@ -329,18 +330,18 @@ class T5(object):
 
         try:
             self.model.config.generate_hidden_states = generate_hidden_states
-           
+
             outputs_dict = self.model.generate(input_ids,
-                                          min_length=min_output_length,
-                                          max_length=max_output_length,
-                                          early_stopping=True,
-                                          no_repeat_ngram_size=no_repeat_ngram_size,
-                                          length_penalty=length_penalty,
-                                          output_hidden_states=True,
-                                          return_dict_in_generate=True)
-                                          
+                                               min_length=min_output_length,
+                                               max_length=max_output_length,
+                                               early_stopping=True,
+                                               no_repeat_ngram_size=no_repeat_ngram_size,
+                                               length_penalty=length_penalty,
+                                               output_hidden_states=True,
+                                               return_dict_in_generate=True)
+
             outputs = outputs_dict['sequences']
-            
+
             if generate_hidden_states:
                 # Split the hidden states from the outputs
                 hidden_states = self.concatenate_hidden_states(outputs_dict['decoder_hidden_states'])
@@ -358,29 +359,29 @@ class T5(object):
             return preds, hidden_states
         else:
             return preds
-          
-    def concatenate_hidden_states(self, hidden_states):      
-      assert len(hidden_states) != 0
-      # The length of output
-      length_output = len(hidden_states)
-      # Number of layers
-      num_of_layers = len(hidden_states[0])
-      # List of Nones with length wich is same as the number of layers
-      concatenated_hidden_states = [None] * num_of_layers
-      # Easily concatenate all hidden_states 
-      for idx_layer in range(0, num_of_layers):
-          for idx_output in range(0, length_output):
-              if concatenated_hidden_states[idx_layer] is None:
-                  concatenated_hidden_states[idx_layer] = hidden_states[0][idx_layer]
-              else:
-                  concatenated_hidden_states[idx_layer] = tf.concat([concatenated_hidden_states[idx_layer], hidden_states[idx_output][idx_layer]], 1)
-      return concatenated_hidden_states
-    
+
+    def concatenate_hidden_states(self, hidden_states):
+        assert len(hidden_states) != 0
+        # The length of output
+        length_output = len(hidden_states)
+        # Number of layers
+        num_of_layers = len(hidden_states[0])
+        # List of Nones with length wich is same as the number of layers
+        concatenated_hidden_states = [None] * num_of_layers
+        # Easily concatenate all hidden_states
+        for idx_layer in range(0, num_of_layers):
+            for idx_output in range(0, length_output):
+                if concatenated_hidden_states[idx_layer] is None:
+                    concatenated_hidden_states[idx_layer] = hidden_states[0][idx_layer]
+                else:
+                    concatenated_hidden_states[idx_layer] = tf.concat([concatenated_hidden_states[idx_layer], hidden_states[idx_output][idx_layer]], 1)
+        return concatenated_hidden_states
+
     def predict_tsv(self, tsv_in, tsv_out):
         batch_size = self.config.get("predict", {}).get("batch_size", 400)
 
         with open(tsv_in, "r", encoding="utf-8") as fr, \
-             open(tsv_out, "w", encoding="utf-8") as fw:
+                open(tsv_out, "w", encoding="utf-8") as fw:
 
             batch = []
 
@@ -405,7 +406,7 @@ class T5(object):
                 if batch:
                     flush()
 
-    def fine_tune(self):
+    def fine_tune(self, external_callbacks=None):
         # Initialize configuration variables
         dataset_config = self.config.get("dataset", {})
         training_config = self.config.get("training", {})
@@ -448,6 +449,8 @@ class T5(object):
         model.compile(optimizer=optimizer, metrics=metrics, loss=None)
 
         callbacks = []
+        for external_callback in external_callbacks:
+            callbacks.append(external_callback)
         if learning_rate_schedule:
             callbacks.append(SqrtScheduler(learning_rate, verbose=1))
 
@@ -485,7 +488,7 @@ class T5(object):
             train_dataset_kwargs["repeat"] = True
         if skip_samples:
             self.logger.info("Skipping initial %d samples, training starts from epoch %d",
-                             skip_samples, training_config["initial_epoch"]+1)
+                             skip_samples, training_config["initial_epoch"] + 1)
             train_dataset_kwargs["skip"] = skip_samples
         train_dataset = tsv_dataset(train_tsv, tf_tokenizer,
                                     line_counter=checkpoint_saver.line_counter,
@@ -525,9 +528,9 @@ class T5(object):
         hyp_fns = []
         for ref_fn in tsv:
             hyp_fn = "{ref_base}.{model_base}.tsv".format(
-                        ref_base=remove_last_ext(ref_fn),
-                        model_base=model_base,
-                    )
+                ref_base=remove_last_ext(ref_fn),
+                model_base=model_base,
+            )
             self.logger.info("Predicting %s into %s", ref_fn, hyp_fn)
             self.predict_tsv(ref_fn, hyp_fn)
             ref_fns.append(ref_fn)
@@ -566,9 +569,9 @@ class T5(object):
             eval_results = eval_tsv(metric, ref_fns, hyp_fns)
 
             eval_fn = "{model_base}.eval.{dataset}.yaml".format(
-                            model_base=self.config["t5_model"]["save_checkpoint"],
-                            dataset=dataset,
-                      )
+                model_base=self.config["t5_model"]["save_checkpoint"],
+                dataset=dataset,
+            )
 
             self.logger.info("Evaluation results for dataset %s:", dataset)
             with open(eval_fn, "w", encoding="utf-8") as fw:
@@ -625,7 +628,7 @@ def match(pairs):
             if r1 == h1:
                 w_ok += 1
 
-    return {"SAcc": ok/n, "WAcc": w_ok/w_n, "W_N": w_n, "W_OK": w_ok, "S_N": n, "S_OK": ok, "W_Err": w_n-w_ok, "S_Err": n-ok}
+    return {"SAcc": ok / n, "WAcc": w_ok / w_n, "W_N": w_n, "W_OK": w_ok, "S_N": n, "S_OK": ok, "W_Err": w_n - w_ok, "S_Err": n - ok}
 
 
 def binary_lab(pairs):
@@ -643,9 +646,9 @@ def binary_lab(pairs):
             elif r == "0" and h == "1":
                 FP += 1
 
-    P = TP / (TP+FP)
-    R = TP / (TP+FN)
-    F = 2 * P * R / (P+R)
+    P = TP / (TP + FP)
+    R = TP / (TP + FN)
+    F = 2 * P * R / (P + R)
 
     return {"TP": TP, "FN": FN, "FP": FP, "P": P, "R": R, "F": F}
 
@@ -733,15 +736,15 @@ def f1_tagged(pairs):
     F = {}
     for tag in tag_set:
         try:
-            P[tag] = TP[tag] / (TP[tag]+FP[tag])
+            P[tag] = TP[tag] / (TP[tag] + FP[tag])
         except ZeroDivisionError:
             P[tag] = 0.
         try:
-            R[tag] = TP[tag] / (TP[tag]+FN[tag])
+            R[tag] = TP[tag] / (TP[tag] + FN[tag])
         except ZeroDivisionError:
             R[tag] = 0.
         try:
-            F[tag] = 2 * P[tag] * R[tag] / (P[tag]+R[tag])
+            F[tag] = 2 * P[tag] * R[tag] / (P[tag] + R[tag])
         except ZeroDivisionError:
             F[tag] = 0.
 
@@ -750,15 +753,15 @@ def f1_tagged(pairs):
     FN = sum(FN.values())
 
     try:
-        P_total = TP / (TP+FP)
+        P_total = TP / (TP + FP)
     except ZeroDivisionError:
         P_total = 0.
     try:
-        R_total = TP / (TP+FN)
+        R_total = TP / (TP + FN)
     except ZeroDivisionError:
         R_total = 0.
     try:
-        F_total = 2 * P_total * R_total / (P_total+R_total)
+        F_total = 2 * P_total * R_total / (P_total + R_total)
     except ZeroDivisionError:
         F_total = 0.
 
@@ -803,7 +806,7 @@ def eval_tsv(metric, ref, hyp):
     for ref_fn, hyp_fn in zip(ref, hyp):
         pairs = []
         with open(ref_fn, "r", encoding="utf-8") as fr_ref, \
-             open(hyp_fn, "r", encoding="utf-8") as fr_hyp:
+                open(hyp_fn, "r", encoding="utf-8") as fr_hyp:
             for idx, (ref_line, hyp_line) in enumerate(zip(fr_ref, fr_hyp)):
                 ref_in, ref_out = ref_line.split("\t")[:2]
                 hyp_in, hyp_out = hyp_line.split("\t")[:2]
