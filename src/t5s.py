@@ -505,7 +505,8 @@ class T5(object):
             dev_dataset = dev_dataset.take(devel_samples)
 
         self.model.fit(train_dataset,
-                       validation_data=dev_dataset,
+                       # validation_data=dev_dataset,
+                       shuffle=True,
                        steps_per_epoch=steps_per_epoch,
                        callbacks=callbacks,
                        initial_epoch=training_config["initial_epoch"],
